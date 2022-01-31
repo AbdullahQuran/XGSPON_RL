@@ -415,12 +415,13 @@ class TU(object):
                         self.embb_sum.append(sum(self.x_embb)) # meanDealy is a list containing the delay of each ONU
             
                 if type == Globals.ONU_TYPE2 and queue_type in ['v']:
-                    stime, self.z = list(zip(*queue))
-                    if len(self.z) > 0:
-                        self.x_video = []
-                        for items in self.z:
-                            self.x_video.append(len(items['PAYLOAD']))
-                        self.video_sum.append(sum(self.x_video)) # meanDealy is a list containing the delay of each ONU
+                    if(len(queue) >= 2):
+                        stime, self.z = list(zip(*queue))
+                        if len(self.z) > 0:
+                            self.x_video = []
+                            for items in self.z:
+                                self.x_video.append(len(items['PAYLOAD']))
+                            self.video_sum.append(sum(self.x_video)) # meanDealy is a list containing the delay of each ONU
 
                 if type == Globals.ONU_TYPE2 and queue_type in ['i']:
                     stime, self.z = list(zip(*queue))
@@ -772,21 +773,22 @@ class TU(object):
             fp1 = IO.open_for_writing(node_file)
             total_sum = sum([sum(i) for i in self.gen_sum])
             # steps = (Globals.SIM_TIME/0.000125)
-            steps = 8000
+            steps = 800 * (10/Globals.SERVICE_INTERVAL)
+            capacity = steps*Globals.FB
             fp1.write("total capacity, total requested, load/capcity\n")
             fp1.write("{},{},{}\n".format(steps*Globals.FB, total_sum/Globals.GEN_TIME, (total_sum/Globals.GEN_TIME)/(steps*Globals.FB)))
             x0 = (steps*Globals.URLLC_AB_MIN/Globals.URLLC_SI_MIN + steps*Globals.URLLC_AB_SUR/Globals.URLLC_SI_MAX)*len(self.urllc_sum)
-            x1 = sum(self.urllc_sum)
-            x2 = sum(self.urllc_sum)/x0 if (x0 > 0) else 0
+            x1 = sum(self.urllc_sum)/Globals.GEN_TIME
+            x2 = sum(self.urllc_sum)/capacity/Globals.GEN_TIME if (x0 > 0) else 0
             x3 = (steps*Globals.EMBB_AB_MIN/Globals.EMBB_SI_MIN + steps*Globals.EMBB_AB_SUR/Globals.EMBB_SI_MAX)*len(self.embb_sum)
-            x4 = sum(self.embb_sum)
-            x5 = sum(self.embb_sum)/x3 if (x3 > 0) else 0
+            x4 = sum(self.embb_sum)/Globals.GEN_TIME
+            x5 = sum(self.embb_sum)/capacity/Globals.GEN_TIME if (x3 > 0) else 0
             x6 = (steps*Globals.VIDEO_AB_MIN/Globals.VIDEO_SI_MIN + steps*Globals.VIDEO_AB_SUR/Globals.VIDEO_SI_MAX)*len(self.video_sum)
-            x7 = sum(self.video_sum)
-            x8 = sum(self.video_sum)/x6 if (x6 > 0) else 0
+            x7 = sum(self.video_sum)/Globals.GEN_TIME
+            x8 = sum(self.video_sum)/capacity/Globals.GEN_TIME if (x6 > 0) else 0
             x9 = (steps*Globals.IP_AB_MIN/Globals.IP_SI_MAX +  steps*Globals.IP_AB_SUR/Globals.IP_SI_MAX)*len(self.ip_sum)
-            x10 = sum(self.ip_sum)
-            x11 = sum(self.ip_sum)/x9 if (x9 > 0) else 0
+            x10 = sum(self.ip_sum)/Globals.GEN_TIME
+            x11 = sum(self.ip_sum)/capacity/Globals.GEN_TIME if (x9 > 0) else 0
             fp1.write("{},{},{}\n{},{},{}\n{},{},{}\n{},{},{}\n".format(x0, x1, x2 ,x3, x4, x5, x6, x7, x8, x9, x10, x11))
 
         # if queue_type == 'dS':

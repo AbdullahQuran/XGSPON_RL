@@ -80,7 +80,7 @@ class env_dba(gym.Env):
         # self.action_space = spaces.MultiDiscrete([8]* self.serviceCount)
         # numpy.array([0.0,0.0,0.0,0.0]), numpy.array([+1.0,+1.0,+1.0,1.0])
         self.action_space = spaces.Box(low=0.0, high=1.0, shape=(1, ),  dtype=numpy.float32)
-        self.maxObservationQueueLength = 185
+        # self.maxObservationQueueLength = 185
         # observation_space = [URRLC_SUM, EMBB_SUM, VIDEO_SUM, IP_SUM]
         self.observation_space = spaces.Box(low=self.minObservation, high=self.maxObservationQueueLength, shape=(1, self.stateSize), dtype=numpy.float32)
         # self.state = numpy.array([numpy.repeat(0, self.serviceCount)], numpy.float32)
@@ -115,12 +115,13 @@ class env_dba(gym.Env):
     def createWorkloadGenerators(self, average, time, step):
         self.Bursts = []
         B, t = PPBP.createPPBPTrafficGen(time/0.01, 5, 0.8, average/12.5, 1, step * 10)
+        B = numpy.array(B) * 630/2/1.9
         self.Bursts.append(B)
         self.Bursts.append(t)
         # self.maxBurstSizeBase = numpy.max(self.Bursts[0])
         # self.minBurstSizeBase = numpy.min(self.Bursts[0])
         # self.meanBurstSizeBase = numpy.mean(self.Bursts[0])
-        self.maxBurstSizeBase = 350
+        self.maxBurstSizeBase = 125000 * 2
         self.minBurstSizeBase = numpy.min(self.Bursts[0])
         self.meanBurstSizeBase = numpy.mean(self.Bursts[0])
         self.maxBurstSize = self.maxBurstSizeBase
@@ -142,7 +143,7 @@ class env_dba(gym.Env):
     def step(self, action):
 
         report = self.Bursts[0][self.burstCounter % self.burstLen]
-        report = int(report * 2 * 10 * 0.62 + self.shiftVal)
+        report = report * 2 + self.shiftVal
         report = max(report, 1)
         self.burstCounter = self.burstCounter + 1
         self.state = self.deNormalizeState(self.state)
@@ -210,7 +211,7 @@ class env_dba(gym.Env):
 
 
     def actionToVal(self, action, maxValue):
-        action = numpy.round(action, 2)
+        action = numpy.round(action, 7)
         return int(action * maxValue)
         # if action == 0:
         #     return int(0.25 * maxValue)
@@ -315,7 +316,7 @@ class env_dba(gym.Env):
         violation = False
         # case 1 
         penalty = 0
-        if((state[0][0] <= 0 and abs(state[0][0]) < 8) or (state[0][1] >= self.maxBurstSize and allocated[0] >= self.maxBurstSize)):
+        if((state[0][0] <= 0 and abs(state[0][0]) < 2) or (state[0][1] >= self.maxBurstSize and allocated[0] == self.maxBurstSize)):
             reward = 1
         else:
             reward = self.computeExponReward(abs(state[0][0]))

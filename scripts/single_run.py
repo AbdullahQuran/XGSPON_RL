@@ -2,7 +2,8 @@ import os
 import constants
 
 
-def writeGlobals(URLLC_AB_MIN, URLLC_AB_SUR, EMBB_AB_MIN, EMBB_AB_SUR, VIDEO_AB_MIN, VIDEO_AB_SUR, IP_AB_MIN, IP_AB_SUR, FB, SIM_TIME, GEN_TIME):
+
+def writeGlobals(URLLC_AB_MIN, URLLC_AB_SUR, EMBB_AB_MIN, EMBB_AB_SUR, VIDEO_AB_MIN, VIDEO_AB_SUR, IP_AB_MIN, IP_AB_SUR, FB, SIM_TIME, GEN_TIME,SI, PROPAGATION_TIME):
     text = "URLLC_AB_MIN = {}\n".format(URLLC_AB_MIN)
     text = text + "URLLC_AB_SUR = {}\n".format(URLLC_AB_SUR)
     text = text + "EMBB_AB_MIN = {}\n".format(EMBB_AB_MIN)
@@ -14,6 +15,8 @@ def writeGlobals(URLLC_AB_MIN, URLLC_AB_SUR, EMBB_AB_MIN, EMBB_AB_SUR, VIDEO_AB_
     text = text + "FB = {}\n".format(FB)
     text = text + "SIM_TIME = {}\n".format(SIM_TIME)
     text = text + "GEN_TIME = {}\n".format(GEN_TIME)
+    text = text + "SERVICE_INTERVAL = {}\n".format(SI)
+    text = text + "PROPAGATION_TIME = {}\n".format(PROPAGATION_TIME)
     constants.writeFile(constants.globalsFilePath, text)
 
 
@@ -80,103 +83,143 @@ def writeParamFile(runningMode):
 
 
 
-# olt_types = ["basic"]
 olt_types = ["rl_predict"]
+# olt_types = ["g"]
 # olt_types = ["basic", "rl_predict"]
 
 trials = 1
 # onu1count, onu2count
 # expArray = [
-#     [2,2],
-#     [4,4],
-#     [6,6],
-#     [8,8],
-#     [10,10],
-#     [12,12],
-#     [14,14],
-#     [16,16]
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 16/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 5.33/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 3.2/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 2.28/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 1.77/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 1.6/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 1.28/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 1.06/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 0.914/2.4],
+#     [1,1, 1.56 * 1000000 / 12.6 / 271 * 0.8/2.4],
 #     ] 
 
-expArray = [
-    # [2,2, 150],
-    # [2,2, 140],
-    # [2,2, 130],
-    # [2,2, 120],
-    # [2,2, 112],
-    # [2,2, 100],
-    # [2,2, 90],
-    # [2,2, 80],
-    # [2,2, 70],
-    # [2,2, 60],
-    [2,2, 58],
-    [2,2, 56],
-    [2,2, 54],
-    [2,2, 52],
-    [2,2, 50],
-    [2,2, 48],
-    [2,2, 46],
-    [2,2, 44],
-    [2,2, 42],
-    [2,2, 40],
-    # [2,2, 40],
-    # [2,2, 30],
-    # [2,2, 20],
-    # [2,2, 10],
-    # [4,4, 750],
-    # [4,4, 500],
-    # [4,4, 280],
-    # [4,4, 375],
-    # [4,4, 250],
-    # [4,4, 210],
-    # [4,4, 160],
-    # [4,4, 105],
-    # [4,4, 75],
+URLLC_AB_MIN = 292 * 5.84
+URLLC_AB_SUR = 0
+EMBB_AB_MIN = 175 * 5.84
+EMBB_AB_SUR = 175 * 5.84
+VIDEO_AB_MIN = 0
+VIDEO_AB_SUR = 0
+IP_AB_MIN = 0
+IP_AB_SUR = 210 * 5.84
+SIM_TIME = 5
+GEN_TIME = 5
+
+SI = 10
+SI_new = [10]
+FB = 1.56 * 1000000 / 446.4 / 1.282
+PROPAGATION_TIME = [4, 3, 2, 1]
+
+
+# expArray = [
+#     [1,1, FB / 1.25*(SI_new/SI), URLLC_AB_MIN/1.25*(SI_new/SI), EMBB_AB_MIN/1.25*(SI_new/SI), EMBB_AB_MIN/1.25*(SI_new/SI), IP_AB_SUR*(SI_new/SI)/1.25],
+
+#     [1,1, FB / 3.77 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/3.77, EMBB_AB_MIN*(SI_new/SI)/3.77, EMBB_AB_MIN*(SI_new/SI)/3.77, IP_AB_SUR*(SI_new/SI)/3.77],
+
+#     [1,1, FB / 6.3 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/6.3, EMBB_AB_MIN*(SI_new/SI)/6.3, EMBB_AB_MIN*(SI_new/SI)/6.3, IP_AB_SUR*(SI_new/SI)/6.3],
+
+#     [1,1, FB / 8.81 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/8.81, EMBB_AB_MIN*(SI_new/SI)/8.81, EMBB_AB_MIN*(SI_new/SI)/8.81, IP_AB_SUR*(SI_new/SI)/8.81],
+
+#     [1,1, FB / 11.33 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/11.33, EMBB_AB_MIN*(SI_new/SI)/11.33, EMBB_AB_MIN*(SI_new/SI)/11.33, IP_AB_SUR*(SI_new/SI)/11.33],
+
+#     [1,1, FB / 12.6 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/12.6, EMBB_AB_MIN*(SI_new/SI)/12.6, EMBB_AB_MIN*(SI_new/SI)/12.6, IP_AB_SUR*(SI_new/SI)/12.6],
+
+#     [1,1, FB / 16 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/16, EMBB_AB_MIN*(SI_new/SI)/16, EMBB_AB_MIN*(SI_new/SI)/16, IP_AB_SUR*(SI_new/SI)/16],
+
+#     [1,1, FB / 18.9 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/18.9, EMBB_AB_MIN*(SI_new/SI)/18.9, EMBB_AB_MIN*(SI_new/SI)/18.9, IP_AB_SUR*(SI_new/SI)/18.9],
+
+#     [1,1, FB / 22.04 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/22.04, EMBB_AB_MIN*(SI_new/SI)/22.04, EMBB_AB_MIN*(SI_new/SI)/22.04, IP_AB_SUR*(SI_new/SI)/22.04],
+
+#     [1,1, FB / 25.2 *(SI_new/SI), URLLC_AB_MIN*(SI_new/SI)/25.2, EMBB_AB_MIN*(SI_new/SI)/25.2, EMBB_AB_MIN*(SI_new/SI)/25.2, IP_AB_SUR*(SI_new/SI)/25.2],
+
+#     ] 
+
+
+
+
+# expArray = [
+#     [1,1, 1.56 * 1000000 / 1.25],
+#     [1,1, 1.56 * 1000000 / 3.77],
+#     [1,1, 1.56 * 1000000 / 6.3],
+#     [1,1, 1.56 * 1000000 / 8.81],
+#     [1,1, 1.56 * 1000000 / 11.33],
+#     [1,1, 1.56 * 1000000 / 12.6],
+#     [1,1, 1.56 * 1000000 / 16],
+#     [1,1, 1.56 * 1000000 / 18.9],
+#     [1,1, 1.56 * 1000000 / 22.04],
+#     [1,1, 1.56 * 1000000 / 25.2],
+#     ] 
+
+
+
+
+for p in PROPAGATION_TIME:
+    s = 10
+    expArray = [
+    [1,1, FB / 1.25*(s/SI), URLLC_AB_MIN/1.25*(s/SI), EMBB_AB_MIN/1.25*(s/SI), EMBB_AB_MIN/1.25*(s/SI), IP_AB_SUR*(s/SI)/1.25],
+
+    [1,1, FB / 3.77 *(s/SI), URLLC_AB_MIN*(s/SI)/3.77, EMBB_AB_MIN*(s/SI)/3.77, EMBB_AB_MIN*(s/SI)/3.77, IP_AB_SUR*(s/SI)/3.77],
+
+    [1,1, FB / 6.3 *(s/SI), URLLC_AB_MIN*(s/SI)/6.3, EMBB_AB_MIN*(s/SI)/6.3, EMBB_AB_MIN*(s/SI)/6.3, IP_AB_SUR*(s/SI)/6.3],
+
+    [1,1, FB / 8.81 *(s/SI), URLLC_AB_MIN*(s/SI)/8.81, EMBB_AB_MIN*(s/SI)/8.81, EMBB_AB_MIN*(s/SI)/8.81, IP_AB_SUR*(s/SI)/8.81],
+
+    [1,1, FB / 11.33 *(s/SI), URLLC_AB_MIN*(s/SI)/11.33, EMBB_AB_MIN*(s/SI)/11.33, EMBB_AB_MIN*(s/SI)/11.33, IP_AB_SUR*(s/SI)/11.33],
+
+    [1,1, FB / 12.6 *(s/SI), URLLC_AB_MIN*(s/SI)/12.6, EMBB_AB_MIN*(s/SI)/12.6, EMBB_AB_MIN*(s/SI)/12.6, IP_AB_SUR*(s/SI)/12.6],
+
+    [1,1, FB / 16 *(s/SI), URLLC_AB_MIN*(s/SI)/16, EMBB_AB_MIN*(s/SI)/16, EMBB_AB_MIN*(s/SI)/16, IP_AB_SUR*(s/SI)/16],
+
+    [1,1, FB / 18.9 *(s/SI), URLLC_AB_MIN*(s/SI)/18.9, EMBB_AB_MIN*(s/SI)/18.9, EMBB_AB_MIN*(s/SI)/18.9, IP_AB_SUR*(s/SI)/18.9],
+
+    [1,1, FB / 22.04 *(s/SI), URLLC_AB_MIN*(s/SI)/22.04, EMBB_AB_MIN*(s/SI)/22.04, EMBB_AB_MIN*(s/SI)/22.04, IP_AB_SUR*(s/SI)/22.04],
+
+    [1,1, FB / 25.2 *(s/SI), URLLC_AB_MIN*(s/SI)/25.2, EMBB_AB_MIN*(s/SI)/25.2, EMBB_AB_MIN*(s/SI)/25.2, IP_AB_SUR*(s/SI)/25.2],
+
     ] 
-
-
-URLLC_AB_MIN = 40
-URLLC_AB_SUR = 30
-EMBB_AB_MIN = 35
-EMBB_AB_SUR = 30
-VIDEO_AB_MIN = 32
-VIDEO_AB_SUR = 30
-IP_AB_MIN = 30
-IP_AB_SUR = 30
-SIM_TIME = 4
-GEN_TIME = 2
-
-for oltType in olt_types:
-    resultsDir1 = constants.resultsDir + oltType
-    command = "rd /s /q " + resultsDir1
-    os.system(command)
-    resultsDir1 = constants.resultsDir + oltType + "\\"
-    for exp in expArray:
-        expNam = '-'.join([str(elem) for elem in exp])
-        expDir = resultsDir1 + expNam
-        command = "rd /s /q " + expDir
+    resultsDir11 = constants.resultsDir + str(p)+ "\\"
+    # resultsDir1 = resultsDir11 + str(s) + "\\"
+    for oltType in olt_types:
+        resultsDir1 = resultsDir11 + oltType + "\\"
+        command = "rd /s /q " + resultsDir1
         os.system(command)
-        for t in range(trials):
-            resultsDir = expDir + "\\" + str(t)
-            command = "rd /s /q " + resultsDir
+        # resultsDir1 = constants.resultsDir + oltType + "\\"
+        for exp in expArray:
+            expNam = '-'.join([str(elem) for elem in exp])
+            expDir = resultsDir1 + expNam
+            command = "rd /s /q " + expDir
             os.system(command)
-            command = "mkdir " + resultsDir
-            os.system(command)
-            writeTopoFile(exp[0] + exp[1])
-            writeNodeTypeFile(exp[0], exp[1])
-            writeParamFile(oltType)
-            writeGlobals(URLLC_AB_MIN,URLLC_AB_SUR,EMBB_AB_MIN,EMBB_AB_SUR,VIDEO_AB_MIN,VIDEO_AB_SUR,IP_AB_MIN,IP_AB_SUR,exp[2],SIM_TIME, GEN_TIME)
-            # start experiment
-            command = "conda init & " + constants.RUN_COMMAND
+            for t in range(trials):
+                resultsDir = expDir + "\\" + str(t)
+                command = "rd /s /q " + resultsDir
+                os.system(command)
+                command = "mkdir " + resultsDir
+                os.system(command)
+                writeTopoFile(exp[0] + exp[1])
+                writeNodeTypeFile(exp[0], exp[1])
+                writeParamFile(oltType)
+                # writeGlobals(URLLC_AB_MIN,URLLC_AB_SUR,EMBB_AB_MIN,EMBB_AB_SUR,VIDEO_AB_MIN,VIDEO_AB_SUR,IP_AB_MIN,IP_AB_SUR,exp[2],SIM_TIME, GEN_TIME)
+                writeGlobals(int(exp[3]),0,int(exp[4]),int(exp[5]),0,0,0,int(exp[6]),exp[2],SIM_TIME, GEN_TIME, 10, p)
+                # start experiment
+                command = "conda init & " + constants.RUN_COMMAND
 
-            os.system(constants.RUN_COMMAND)
-            # copy results to the 
-            copyCommand = "Xcopy /E /I {} {}".format(constants.OUTPUT_PATH, resultsDir) 
-            os.system(copyCommand)
-            copyCommand = "copy {} {}".format(constants.paramFilePath, resultsDir) 
-            os.system(copyCommand)
-            copyCommand = "copy {} {}".format(constants.nodeTypeFilePath, resultsDir) 
-            os.system(copyCommand)
-            copyCommand = "copy {} {}".format(constants.topoFilePath, resultsDir) 
-            os.system(copyCommand)
+                os.system(constants.RUN_COMMAND)
+                # copy results to the 
+                copyCommand = "Xcopy /E /I {} {}".format(constants.OUTPUT_PATH, resultsDir) 
+                os.system(copyCommand)
+                copyCommand = "copy {} {}".format(constants.paramFilePath, resultsDir) 
+                os.system(copyCommand)
+                copyCommand = "copy {} {}".format(constants.nodeTypeFilePath, resultsDir) 
+                os.system(copyCommand)
+                copyCommand = "copy {} {}".format(constants.topoFilePath, resultsDir) 
+                os.system(copyCommand)
 
-''
+

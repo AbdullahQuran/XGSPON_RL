@@ -4,4 +4,8 @@ rl_learning_DQN/*
 *.dat
 *.json
 *.pkl
-results/*
+/results/*
+*.param
+*.topo
+*.type
+*.h5

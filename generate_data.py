@@ -4,7 +4,7 @@ from rl_learning import PPBP
 import random
 
 files = 8
-t = 100 
+t = 5 
 size = 40
 B, _ = PPBP.createPPBPTrafficGen(t/0.1, 5, 0.8, size/12.5, 1, 0.000125 * 10)
 

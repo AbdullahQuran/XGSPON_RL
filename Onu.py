@@ -68,6 +68,29 @@ class ONU(object):
             Globals.TCON2_ID: 0,
         }  # {1: 500. tcon_id: size}
         
+        if (self.M.G.nodes[self.name][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE):
+            self.amplificationFactor = {
+                # Globals.TCON1_ID: 630/2/1.9,
+                # Globals.TCON2_ID: 350/2/1.9,
+                # Globals.TCON1_ID: 630/2/1.9/16/10/2,
+                # Globals.TCON2_ID: 630/2/1.9/16/1.8/10/2
+                Globals.TCON1_ID: 480/2/1.9/446.4,
+                Globals.TCON2_ID: 480/2/1.9/446.4,
+                 }
+        else:
+            # self.amplificationFactor = {
+            #     Globals.TCON1_ID: 0,
+            #     Globals.TCON2_ID: 460/2/1.9,
+            # }
+            self.amplificationFactor = {
+                Globals.TCON1_ID: 0,
+                Globals.TCON2_ID: 480/2/1.9/446.4,
+            }
+            # self.amplificationFactor = {
+            #     Globals.TCON1_ID: 0,
+            #     Globals.TCON2_ID: 630/2/1.9/16/1.36/10/2,
+            # }
+
         self.queue_mon = collections.deque()
 
         # packets persistent storage
@@ -177,38 +200,86 @@ class ONU(object):
 
 
     def fullCycle(self):
+        self.xgponCounter = 0 
         while(True):
-            if (self.M.oltType != 'rl_predict'):
+            if (self.M.oltType == 'g'):
+                report_cycles = [0] 
+                grant_cycles = [Globals.SERVICE_INTERVAL - 1]
+                grant_cycles_r = [(x + Globals.PROPAGATION_TIME) % Globals.SERVICE_INTERVAL for x in grant_cycles]
+
                 if self.env.now < Globals.GEN_TIME:
                     if self.M.G.nodes[self.name][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
                         self.URLLC_ONU1_T1_pkt_gen_process()
                         self.eMBB_ONU1_T2_pkt_gen_process()
                     else:
-                        self.Video_ONU2_T2_pkt_gen_process()
+                        # self.Video_ONU2_T2_pkt_gen_process()
                         self.IP_ONU2_T3_pkt_gen_process()
-                self.send_report_packet()
-                for c in self.conns:
-                    yield self.env.process(self.if_recv(c))
-                yield self.env.process(self.forward_process())
-                self.tcon_allocated_size[Globals.TCON1_ID] = 0
-                self.tcon_allocated_size[Globals.TCON2_ID] = 0
+                self.forward_process()
+            
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL == 0):
+                    self.send_report_packet()
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles_r and self.xgponCounter >= Globals.SERVICE_INTERVAL):
+                    self.tcon_allocated_size[Globals.TCON1_ID] = 0
+                    self.tcon_allocated_size[Globals.TCON2_ID] = 0
+                    for c in self.conns:
+                        yield self.env.process(self.if_recv(c))
+                
                 yield self.env.timeout(Globals.XGSPON_CYCLE)
+            
+            elif (self.M.oltType == 'ibu'):
+                report_cycles = [0, 2, 4] 
+                grant_cycles = [1, 3, 5]   
+                grant_cycles_r = [x + Globals.PROPAGATION_TIME for x in grant_cycles]
+                if self.env.now < Globals.GEN_TIME:
+                    if self.M.G.nodes[self.name][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
+                        self.URLLC_ONU1_T1_pkt_gen_process()
+                        self.eMBB_ONU1_T2_pkt_gen_process()
+                    else:
+                        # self.Video_ONU2_T2_pkt_gen_process()
+                        self.IP_ONU2_T3_pkt_gen_process()
+                self.forward_process()
+            
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in report_cycles):
+                    self.send_report_packet()
+                
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles_r and self.xgponCounter >= Globals.SERVICE_INTERVAL):
+                    self.tcon_allocated_size[Globals.TCON1_ID] = 0
+                    self.tcon_allocated_size[Globals.TCON2_ID] = 0
+                    for c in self.conns:
+                        yield self.env.process(self.if_recv(c))
+                
+                yield self.env.timeout(Globals.XGSPON_CYCLE)
+
+
             else:
-                for c in self.conns:
-                    yield self.env.process(self.if_recv(c))
+                # report_cycles = [0,1,2,3,4,5,6,7,8,9] 
+                # grant_cycles = [0,1,2,3,4,5,6,7,8,9]  
+                report_cycles = [0] 
+                grant_cycles = [1]
+                grant_cycles_r = [(x + Globals.PROPAGATION_TIME) % Globals.SERVICE_INTERVAL for x in grant_cycles]
+     
                 if self.env.now < Globals.GEN_TIME:
                     if self.M.G.nodes[self.name][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
                         self.URLLC_ONU1_T1_pkt_gen_process()
                         self.eMBB_ONU1_T2_pkt_gen_process()
                     else:
-                        self.Video_ONU2_T2_pkt_gen_process()
+                        # self.Video_ONU2_T2_pkt_gen_process()
                         self.IP_ONU2_T3_pkt_gen_process()
-                self.send_report_packet()
-                yield self.env.process(self.forward_process())
-                self.tcon_allocated_size[Globals.TCON1_ID] = 0
-                self.tcon_allocated_size[Globals.TCON2_ID] = 0
+                self.forward_process()
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles_r):
+                    self.tcon_allocated_size[Globals.TCON1_ID] = 0
+                    self.tcon_allocated_size[Globals.TCON2_ID] = 0
+                    for c in self.conns:
+                        yield self.env.process(self.if_recv(c))
+                
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in report_cycles):
+                    self.send_report_packet()
+                
                 yield self.env.timeout(Globals.XGSPON_CYCLE)
-    
+            
+            
+            self.xgponCounter =  self.xgponCounter + 1
+
     
     def if_recv(self, c):
         """Node receive interface from node 'c'"""
@@ -271,9 +342,8 @@ class ONU(object):
             
             if (pkt[Globals.REPORT_PACKET_PAYLOAD_LENGTH_FIELD] <= sizeToSend):
                 pkt[Globals.REPORT_TIME] = self.env.now
-                pktDelay = pkt[Globals.REPORT_TIME] - pkt[Globals.TIME_STAMP]
                 transTime = self.computeTransTime(pkt[Globals.REPORT_PACKET_PAYLOAD_FIELD])
-                yield self.env.timeout(transTime)
+                pktDelay = pkt[Globals.REPORT_TIME] - pkt[Globals.TIME_STAMP] + transTime
                 if self.M.G.nodes[self.name][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
                     
                     self.reported_ONU1_T1_URLLC.append([pktDelay, pkt])
@@ -325,6 +395,7 @@ class ONU(object):
                 pkt[Globals.REPORT_TIME] = self.env.now # report it
                 pktDelay = pkt[Globals.REPORT_TIME] - pkt[Globals.TIME_STAMP]
                 transTime = self.computeTransTime(pkt[Globals.REPORT_PACKET_PAYLOAD_FIELD])
+                pktDelay = pkt[Globals.REPORT_TIME] - pkt[Globals.TIME_STAMP] + transTime
                 # yield self.env.timeout(transTime)
                 if  self.M.G.nodes[pkt.get(Globals.SOURCE)][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
 
@@ -648,7 +719,7 @@ class ONU(object):
             return ""
         
         # payloadSize = self.Bursts[trconId][0].pop()
-        payloadSize = self.Bursts[trconId][0][self.genrationCounter[trconId]]
+        payloadSize = self.Bursts[trconId][0][self.genrationCounter[trconId]] * self.amplificationFactor[Globals.TCON1_ID]
         self.genrationCounter[trconId] = (self.genrationCounter[trconId] + 1) % len(self.Bursts[trconId][0])
         if (payloadSize > Globals.URLLC_AB_MIN + Globals.URLLC_AB_SUR):
             payloadSize = Globals.URLLC_AB_MIN + Globals.URLLC_AB_SUR
@@ -663,7 +734,7 @@ class ONU(object):
         if (len(self.Bursts[trconId][0]) == 0):
             return ""
         # payloadSize = self.Bursts[trconId][0].pop()
-        payloadSize = self.Bursts[trconId][0][self.genrationCounter[trconId]]
+        payloadSize = self.Bursts[trconId][0][self.genrationCounter[trconId]] * self.amplificationFactor[Globals.TCON2_ID]
         self.genrationCounter[trconId] = (self.genrationCounter[trconId] + 1) % len(self.Bursts[trconId][0])       
         if (payloadSize > Globals.EMBB_AB_MIN + Globals.EMBB_AB_SUR):
             payloadSize = Globals.EMBB_AB_MIN + Globals.EMBB_AB_SUR
@@ -691,7 +762,7 @@ class ONU(object):
         if (len(self.Bursts[trconId][0]) == 0):
             return ""
         # payloadSize = self.Bursts[trconId][0].pop()
-        payloadSize = self.Bursts[trconId][0][self.genrationCounter[trconId]]
+        payloadSize = self.Bursts[trconId][0][self.genrationCounter[trconId]] * self.amplificationFactor[Globals.TCON2_ID]
         self.genrationCounter[trconId] = (self.genrationCounter[trconId] + 1) % len(self.Bursts[trconId][0])
         if (payloadSize > Globals.IP_AB_MIN + Globals.IP_AB_SUR):
             payloadSize = Globals.IP_AB_MIN + Globals.IP_AB_SUR

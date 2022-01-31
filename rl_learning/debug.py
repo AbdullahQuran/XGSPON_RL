@@ -33,6 +33,19 @@ import Odn
 import my_clock
 import IO
 
+def loadCsvAsArray(path):
+    data = []
+    f = open(path, "r")
+    for x in f:
+        data.append(float(x.replace('\n','')))
+    print(path)
+    print("avg:" + str(numpy.mean(data)))
+    print("max:" + str(numpy.max(data)))
+    print("min:" + str(numpy.min(data)))
+    print("**************")
+    return data
+
+
 def main():
     onu1Count = 1
     onu2Count = 0
@@ -217,7 +230,7 @@ def predict_main2():
     M, network = makeModel()
     env = DBA_env_sub_agent_prediction2.env_dba(network, M)
     env = DummyVecEnv([lambda: env])
-    rlModel = PPO2.load("./models/urllc.pkl")
+    rlModel = PPO2.load("../urllc.pkl")
     obs = env.reset()
     state = None
     # When using VecEnv, done is a vector
@@ -225,11 +238,12 @@ def predict_main2():
     # state = numpy.empty((1,2), dtype=numpy.float32)
     # state[0][0] = 0
     # state[0][1] = 0
-    time = 5
+    time = 2
     size = 40
-    ww = 100
-    bursts, t = PPBP.createPPBPTrafficGen(time/0.01, 5, 0.8, size/12.5, 1, 0.000125 * 10)
-    
+    ww = 350
+    # bursts, t = PPBP.createPPBPTrafficGen(time/0.01, 5, 0.8, size/12.5, 1, 0.000125 * 10)
+    bursts = loadCsvAsArray("../data0.csv")
+    idx = random.randint(0, len(bursts))
     # for i in range(10000):
     #     s = [[7/Globals.OBSERVATION_MAX],[11/Globals.OBSERVATION_MAX]]
     #     action = rlModel.predict(s, deterministic=True)
@@ -238,7 +252,9 @@ def predict_main2():
     queueLengthMax = ww * episodeLength
     lines = []
     for i in range(int(time/0.000125)):
-        b = bursts[i]
+        idx = (idx + 10) % len(bursts)
+        b = bursts[idx]
+        b = int(b * 630/2/1.9/271) * 10
         line = ""
         line = line + str(obs[0][0][0]) + "," + str(obs[0][0][1]) + ","
         # print("state before: " + str(obs[0][0]))
@@ -250,7 +266,7 @@ def predict_main2():
         obs[0][0][0] = obs[0][0][0] * queueLengthMax
         obs[0][0][1] = obs[0][0][1] * ww
         
-        obs[0][0][0] = obs[0][0][0] + b - action
+        obs[0][0][0] = max(obs[0][0][0] + b - action, 0)
         obs[0][0][1] = b
         line = line + "," + str(obs[0][0][0]) + "," + str(obs[0][0][1]) + "\n"
         lines.append(line)
