@@ -1,7 +1,6 @@
 """Driver.py
 """
 import threading
-import time
 import simpy
 from rl_learning import PPBP, Globals
 import Simulator
@@ -20,35 +19,6 @@ from rl_learning import DBA_env_sub_agent2
 from rl_learning import DBA_env_sub_agent_prediction2
 from stable_baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 import numpy
-import json
-from tensorflow.keras.models import load_model
-from sklearn.preprocessing import MinMaxScaler
-from pandas import read_csv
-from pandas import DataFrame
-from pandas import Series
-from pandas import concat
-from pandas import datetime
-
-def timeseries_to_supervised(data, lag=1):
-    df = DataFrame(data)
-    columns = [df.shift(i) for i in range(1, lag+1)]
-    columns.append(df)
-    df = concat(columns, axis=1)
-    df.fillna(0, inplace=True)
-    return df
-
-def difference(dataset, interval=1):
-    diff = list()
-    for i in range(interval, len(dataset)):
-        value = dataset[i] - dataset[i - interval]
-        diff.append(value)
-    return Series(diff)
-
-def scale(data):
-	# fit scaler
-	scaler = MinMaxScaler(feature_range=(-1, 1))
-	scaler = scaler.fit(data)
-	return scaler
 
 
 def loadCsvAsArray(path):
@@ -89,10 +59,8 @@ def run_sim(M, t, output_dir=None, bar=False, verbose=Globals.VERB_NO):
     M.embbModel = None
     M.videoModel = None
     M.ipModel = None
-    M.totalDelay = 0
-
     # bind the network model 'M' to the SimPy simulation environment
-    counterDataFiles = 2
+    counterDataFiles = 0
     counterDataCount = 8
     dataFilesName = "data"
     M.B = {}
@@ -128,7 +96,7 @@ def run_sim(M, t, output_dir=None, bar=False, verbose=Globals.VERB_NO):
         M.embbModel = PPO2.load("./embb.pkl")
         M.videoModel = PPO2.load("./video.pkl")
         M.ipModel = PPO2.load("./ip.pkl")
-        M.lstmModel = None
+
 
 
         for x in M.G.nodes():
@@ -162,39 +130,9 @@ def run_sim(M, t, output_dir=None, bar=False, verbose=Globals.VERB_NO):
                 # M.rl_models[x][Globals.TCON2_ID] = PPO2.load("./rl_learning/ip.pkl")
        
 
-    elif 'lstm' in M.oltType:
-        # f = open('lstm.json',)
-        # modelJson = json.load(f)
-        # lstmModel = models.model_from_json(modelJson)
-        data = read_csv('./lstm0.csv')
- 
-        # transform data to be stationary
-        data = data.values
-        # diff_values = difference(raw_values, 1)
-        data = difference(data)
-        # transform data to be supervised learning
-        data = timeseries_to_supervised(data, 1)
-        data = data.values
-        scaler = scale(data)
-        M.scaler = scaler
-
-        lstmModelURLLC = load_model('lstm.h5')
-        lstmModelEMBB = load_model('lstm.h5')
-        lstmModelIP = load_model('lstm.h5')
-        M.rl_models = {}
-        for x in M.G.nodes():
-            if x not in M.rl_models.keys():
-                M.rl_models[x] = {Globals.TCON1_ID: None, Globals.TCON2_ID: None}
-            if M.G.nodes[x][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
-                M.rl_models[x][Globals.TCON1_ID] = lstmModelURLLC
-                M.rl_models[x][Globals.TCON2_ID] = lstmModelEMBB
-            if M.G.nodes[x][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE2:
-                M.rl_models[x][Globals.TCON1_ID] = lstmModelIP
-                M.rl_models[x][Globals.TCON2_ID] = lstmModelIP
-
     else:
         M.rlModel = None
-        
+         
 
 
     traceUtils = TraceUtils.TU(env, M)
@@ -214,9 +152,8 @@ def run_sim(M, t, output_dir=None, bar=False, verbose=Globals.VERB_NO):
 
     # end_event = env.event()
     # end_event.succeed
-    start = time.time_ns()
+
     env.run(until=t)
-    end = time.time_ns()
     # node_names = list(network.keys())
     # node_names.sort()
     # for node_name in node_names:
@@ -252,8 +189,6 @@ def run_sim(M, t, output_dir=None, bar=False, verbose=Globals.VERB_NO):
         combined_csv = pd.concat([pd.read_csv(f) for f in results], axis=1, verify_integrity=False)
         combined_csv.to_csv( "./output/combined.csv")
 
-    print("total: " + str((end - start)/1000))
-    print("model delay: " + str(M.totalDelay/1000) + "us")
 
     
 

@@ -4,14 +4,13 @@ import os
 import numpy as np 
 
 
-root = 'D:\\anxCopy\\results\\4'
+root = 'D:\\anxCopy\\results\\'
 delayDict ={}
 loadDict = {}
 expDict= {} # {exp: data} 
 i = 0
 header = ['Avg delay',  ' load/capcity']
-# type = ['lstm', 'g', 'ibu', "rl_predict"]
-type = ['g', 'ibu', 'rl_predict']
+type = ['rl_predict', 'ibu', 'g']
 for typ in type:
     rootdir = os.path.join(root, typ)
     dirs = os.listdir(rootdir)

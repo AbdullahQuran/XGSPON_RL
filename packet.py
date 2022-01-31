@@ -53,7 +53,7 @@ def make_payload_packet(env,id, dest_node, src_node, onuId, payload,tcon_id):
     pkt[Globals.NO_HOPS] = 0  # the initial value
     pkt[Globals.REPORT_PACKET_ONU_ID_FIELD] = onuId 
     pkt[Globals.REPORT_PACKET_PAYLOAD_FIELD] = payload
-    pkt[Globals.REPORT_PACKET_PAYLOAD_LENGTH_FIELD] = max(len(payload), 1)
+    pkt[Globals.REPORT_PACKET_PAYLOAD_LENGTH_FIELD] = len(payload)
     pkt[Globals.ONU_PACKET_TYPE_FIELD] = Globals.ONU_PAYLOAD_PACKET_TYPE
     pkt[Globals.ONU_PACKET_TCON_ID_FIELD] = tcon_id
     pkt[Globals.REPORT_TIME] = 0  # the initial value

@@ -154,8 +154,7 @@ BROADCAST_REPORT_DEST_ID = "-2"
 ######### DBA variables
 
 XGSPON_CYCLE = 0.000125
-SERVICE_INTERVAL =  params.SERVICE_INTERVAL 
-PROPAGATION_TIME = params.PROPAGATION_TIME
+SERVICE_INTERVAL =  XGSPON_CYCLE   
 
 TCON1_ID = 1 # 5g: URLLC, FFTx: video
 TCON2_ID = 2 # 5g: embb, FFTx: IP
@@ -247,10 +246,10 @@ IP_SCALE = 10
 # queue_cutoff_bytes_video = 1000000
 # queue_cutoff_bytes_ip = 1000000
 
-queue_cutoff_bytes_urllc = 2240
-queue_cutoff_bytes_embb = 2240
-queue_cutoff_bytes_video = 2240
-queue_cutoff_bytes_ip = 2240
+queue_cutoff_bytes_urllc = 2000
+queue_cutoff_bytes_embb = 2000
+queue_cutoff_bytes_video = 2000
+queue_cutoff_bytes_ip = 2000
 
 
 

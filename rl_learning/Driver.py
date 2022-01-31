@@ -54,6 +54,7 @@ def run_sim(M, t, output_dir=None, bar=False, verbose=Globals.VERB_NO):
     M.rlModel = None
     traceUtils = TraceUtils.TU(None, M)
     M.traceUtils = traceUtils
+
     # bind the network model 'M' to the SimPy simulation environment
     network = Simulator.setup_network(None, M, verbose=verbose)
     # rlAgent = DBA_env.env_dba(env, network, M)
@@ -79,7 +80,6 @@ def run_sim(M, t, output_dir=None, bar=False, verbose=Globals.VERB_NO):
     # rlEnv = car.Continuous_MountainCarEnv(network, M)
     
     # model = A2C(  'MlpPolicy', rlEnv, n_steps=32, ent_coef=0, vf_coef=0.25, learning_rate=0.0001,verbose=1).learn(int(t/0.000125), log_interval=1)
-    # model = A2C(  'MlpLstmPolicy', rlEnv,gamma=0.99, n_steps=32, ent_coef=0, vf_coef=0.25, learning_rate=0.0001,verbose=1).learn(int(t/0.000125), log_interval=100)
     # model = SAC('MlpPolicy', rlEnv, verbose=1).learn(int(t/0.000125), log_interval=1)
     # model = DDPG(  'MlpPolicy', rlEnv, verbose=1).learn(int(t/0.000125), log_interval=10)
     model = PPO2( 'MlpLstmPolicy', rlEnv, nminibatches = 1, gamma=0.4, n_steps=128, ent_coef=0.01, vf_coef=0.5, learning_rate=0.00025,verbose=1).learn(int(t/0.000125), log_interval=10)
@@ -124,3 +124,4 @@ def run_sim(M, t, output_dir=None, bar=False, verbose=Globals.VERB_NO):
             combined_csv.to_csv( './output/combined.csv')
 
     
+

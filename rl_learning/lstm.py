@@ -12,8 +12,7 @@ from tensorflow import keras
 # from tensorflow.keras.layers import LSTM
 import tensorflow
 from keras.models import Sequential
-from keras.layers import Dense, Dropout
-
+from keras.layers import Dense
 from keras.layers import LSTM
 # from tensorflow.keras.models import save_model
 from math import sqrt
@@ -53,7 +52,7 @@ def inverse_difference(history, yhat, interval=1):
 # scale train and test data to [-1, 1]
 def scale(train, test):
 	# fit scaler
-	scaler = MinMaxScaler(feature_range=(-1, 1))
+	scaler = MinMaxScaler(feature_range=(0, 1))
 	scaler = scaler.fit(train)
 	# transform train
 	train = train.reshape(train.shape[0], train.shape[1])
@@ -76,10 +75,8 @@ def fit_lstm(train, batch_size, nb_epoch, neurons):
 	X, y = train[:, 0:-1], train[:, -1]
 	X = X.reshape(X.shape[0], 1, X.shape[1])
 	model = Sequential()
-	model.add(LSTM(4, return_sequences=True, batch_input_shape=(batch_size, X.shape[1], X.shape[2]), stateful=True))
-	# model.add(Dropout(0.5))
-	model.add(LSTM(1, stateful=True))
-	# model.add(Dropout(0.5))
+	model.add(LSTM(neurons, batch_input_shape=(batch_size, X.shape[1], X.shape[2]), stateful=True))
+	
 	model.add(Dense(1))
 	model.compile(loss='mean_squared_error', optimizer='adam')
 	for i in range(nb_epoch):
@@ -99,8 +96,8 @@ series = read_csv('lstm0.csv')
  
 # transform data to be stationary
 raw_values = series.values
-diff_values = difference(raw_values, 1)
-# diff_values = raw_values
+# diff_values = difference(raw_values, 1)
+diff_values = raw_values
  
 # transform data to be supervised learning
 supervised = timeseries_to_supervised(diff_values, 1)
@@ -115,7 +112,7 @@ scaler, train_scaled, test_scaled = scale(train, test)
  
 # repeat experiment
 repeats = 1
-epochs_count = 1
+epochs_count = 4
 error_scores = list()
 for r in range(repeats):
 	# fit the model
@@ -143,7 +140,7 @@ for r in range(repeats):
 		# invert scaling
 		yhat = invert_scale(scaler, X, yhat)
 		# invert differencing
-		yhat = inverse_difference(raw_values, yhat, len(test_scaled)+1-i)
+		# yhat = inverse_difference(raw_values, yhat, len(test_scaled)+1-i)
 		# store forecast
 		predictions.append(yhat)
 	# report performance
