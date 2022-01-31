@@ -1,7 +1,0 @@
-*.pyc
-*.csv
-rl_learning_DQN/*
-*.dat
-*.json
-*.pkl
-results/*
