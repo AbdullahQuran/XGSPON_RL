@@ -773,7 +773,7 @@ class TU(object):
             fp1 = IO.open_for_writing(node_file)
             total_sum = sum([sum(i) for i in self.gen_sum])
             # steps = (Globals.SIM_TIME/0.000125)
-            steps = 800
+            steps = 800 * (10/Globals.SERVICE_INTERVAL)
             capacity = steps*Globals.FB
             fp1.write("total capacity, total requested, load/capcity\n")
             fp1.write("{},{},{}\n".format(steps*Globals.FB, total_sum/Globals.GEN_TIME, (total_sum/Globals.GEN_TIME)/(steps*Globals.FB)))

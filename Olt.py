@@ -3,9 +3,15 @@ import random
 import collections  # provides 'deque'
 import inspect
 import threading
+import time
 from numpy.core.numeric import count_nonzero
 import pandas as pd
 import networkx as nx
+from pandas import DataFrame
+from pandas import Series
+from pandas import concat
+from pandas import read_csv
+from pandas import datetime
 from rl_learning import Globals
 import Utils
 import PacketGenerator
@@ -85,7 +91,7 @@ class OLT(object):
                 self.onu_queue_status[x] = {Globals.TCON1_ID: 0, Globals.TCON2_ID: 0}
                 self.rl_models[x] = {Globals.TCON1_ID: None, Globals.TCON2_ID: None}
                 self.rlNueralState[x] = {Globals.TCON1_ID: None, Globals.TCON2_ID: None}
-                self.lastOnuReport[x] = {Globals.TCON1_ID: 0, Globals.TCON2_ID: 0}
+                self.lastOnuReport[x] = {Globals.TCON1_ID: 9, Globals.TCON2_ID: 9}
                 self.tcon_alloc_matrix[x] = {Globals.TCON1_ID: 0, Globals.TCON2_ID: 0}
                 self.tcon_unsatisfied_matrix[x] = {Globals.TCON1_ID: 0, Globals.TCON2_ID: 0}
                 self.onuCount = self.onuCount + 1
@@ -144,7 +150,10 @@ class OLT(object):
         self.maxIpObservation = self.episodeLength * self.maxIpReport  
         self.minIpObservation = -1 * self.maxIpObservation
 
-
+        # lstm vars
+        self.lstmUrllcPrevStat = 0
+        self.lstmEmbbPrevStat = 0
+        self.lstmIpPrevStat = 0
 
     def test(self):
         self.FB_remaining = 10000
@@ -179,7 +188,7 @@ class OLT(object):
         self.env.process(self.fullCycle())
 
     def fullCycle(self):
-        if(self.urllcObs == None and "rl" in self.M.oltType):
+        if(self.urllcObs == None and ("rl" in self.M.oltType)):
             self.urllcObs = self.M.rlEnv.reset()
             self.embbObs = self.M.rlEnv.reset()
             self.videoObs = self.M.rlEnv.reset()
@@ -196,43 +205,57 @@ class OLT(object):
                     # self.rl_models[x][Globals.TCON2_ID] = self.M.ipModel
                     self.rlNueralState[x][Globals.TCON1_ID] = None
                     self.rlNueralState[x][Globals.TCON2_ID] = None
+        
+        elif "lstm" in self.M.oltType:
+            self.rl_models = self.M.rl_models
+            self.scaler = self.M.scaler
+        
         self.xgponCounter = 0
         while True:
             if (self.M.oltType == 'g'):
-                if (self.xgponCounter % Globals.SERVICE_INTERVAL == 0):
+                report_cycles = [0] 
+                report_cycles_r = [(x + Globals.PROPAGATION_TIME) % Globals.SERVICE_INTERVAL for x in report_cycles]
+                grant_cycles = [Globals.SERVICE_INTERVAL - 1]
+
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in report_cycles_r):
                     for c in self.conns:
                         for i in range(self.onuCount):
                             yield self.env.process(self.if_recv(c))
                     self.report_message_ONU.append([self.env.now, copy.deepcopy(self.onu_queue_status)])
-                if (self.xgponCounter % Globals.SERVICE_INTERVAL == Globals.SERVICE_INTERVAL - 1):
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles and self.xgponCounter >= report_cycles_r[0]):
+                    self.initAllocationVars(0)
                     self.generate_grant_msg()
 
                 yield self.env.timeout(Globals.XGSPON_CYCLE)
             
             elif (self.M.oltType == 'ibu'):
-                report_cycles = [0, 3, 6]   
-                grant_cycles = [2, 5, 8]   
-                if (self.xgponCounter % Globals.SERVICE_INTERVAL in report_cycles):
+                report_cycles = [0, 2, 4]   
+                report_cycles_r = [x+Globals.PROPAGATION_TIME for x in report_cycles]
+                grant_cycles = [1, 3, 5]   
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in report_cycles_r):
                     for c in self.conns:
                         for i in range(self.onuCount):
                             yield self.env.process(self.if_recv(c))
                     self.report_message_ONU.append([self.env.now, copy.deepcopy(self.onu_queue_status)])
-                if (self.xgponCounter % Globals.SERVICE_INTERVAL in  grant_cycles):
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in  grant_cycles and self.xgponCounter >= report_cycles_r[0]):
+                    if (self.xgponCounter % Globals.SERVICE_INTERVAL == grant_cycles[0]):
+                        self.initAllocationVars(0)
                     self.generate_grant_msg()
 
                 yield self.env.timeout(Globals.XGSPON_CYCLE)
                             
             
-            else:
+            elif self.M.oltType == 'lstm' or self.M.oltType == 'rl_predict':
                 # report_cycles = [0,1,2,3,4,5,6,7,8,9] 
                 # grant_cycles = [0,1,2,3,4,5,6,7,8,9]   
                 report_cycles = [0] 
-                grant_cycles = [1]   
-                
+                report_cycles_r = [(x + Globals.PROPAGATION_TIME) % Globals.SERVICE_INTERVAL for x in report_cycles]
+                grant_cycles = [1]
+   
                 if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles):
                     self.initAllocationVars(0)
                     self.generate_grant_msg()
-                if (self.xgponCounter % Globals.SERVICE_INTERVAL in report_cycles):
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in report_cycles_r):
                     for c in self.conns:
                         for i in range(self.onuCount):
                             yield self.env.process(self.if_recv(c))
@@ -340,8 +363,8 @@ class OLT(object):
     def generate_grant_msg(self):
         """Process that generates networks packets"""
         # yield self.env.timeout(Globals.SERVICE_INTERVAL)
-        if (self.xgponCounter % Globals.SERVICE_INTERVAL == 0 or self.xgponCounter % Globals.SERVICE_INTERVAL == 2 or self.M.oltType == 'g'):
-            self.initAllocationVars(0)
+        # if (self.xgponCounter % Globals.SERVICE_INTERVAL == 0 or self.xgponCounter % Globals.SERVICE_INTERVAL == 2 or self.M.oltType == 'g'):
+            
         # choose the destination node
         dest_node = Globals.BROADCAST_GRANT_DEST_ID
         # create the packet
@@ -458,6 +481,85 @@ class OLT(object):
         action, state[onuId][tconId] = model.predict(obs, state=state[onuId][tconId])
         allocationDict[onuId][tconId] = int(action[0] * maxReport) * 10
 
+    def invert_scale(self, scaler, X, value):
+        new_row = [x for x in X] + [value]
+        array = numpy.array(new_row, dtype=object)
+        array = array.reshape(1, len(array))
+        inverted = scaler.inverse_transform(array)
+        return inverted[0, -1]
+
+    def inverse_difference(self,base, yhat):
+	    return yhat + base - 65
+
+    def difference(self,dataset, interval=1):
+        diff = list()
+        for i in range(interval, len(dataset)):
+            value = dataset[i] - dataset[i - interval]
+            diff.append(value)
+        return Series(diff)
+ 
+
+    def predictAllocationLSTM(self):
+        allocationResult= self.initAllocationDict()
+        if(self.cycle == 0):
+            return self.vb_min_matrix
+
+        for x in self.M.G.nodes():
+            if self.M.G.nodes[x][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
+                state = self.urllc_state_predict[x]
+                state = [self.lstmUrllcPrevStat, state[1], state[1]]
+                state = self.difference(state)
+                state = self.timeseries_to_supervised(state, 1)
+                state = state.values
+                state = self.scaler.transform(state)
+                state = state[1, 0:-1]
+                # state = self.normalizeSubStatePredictLSTM(state, self.maxUrllcObservation, self.minUrllcObservation, self.maxUrllcReport, self.minUrllcReport)
+               	state = state.reshape(1, 1, len(state))
+                action = self.rl_models[x][Globals.TCON1_ID].predict(state,1)
+                action = self.invert_scale(self.scaler,state, action[0,0])
+                action = self.inverse_difference(self.urllc_state_predict[x][1],action )
+                allocationResult[x][Globals.TCON1_ID] = action
+                self.lstmUrllcPrevStat = self.urllc_state_predict[x][1]
+
+
+                state = self.embb_state_predict[x]
+                state = [self.lstmEmbbPrevStat, state[1], state[1]]
+                state = self.difference(state)
+                state = self.timeseries_to_supervised(state, 1)
+                state = state.values
+                state = self.scaler.transform(state)
+                state = state[1, 0:-1]
+                # state = self.normalizeSubStatePredictLSTM(state, self.maxEmbbObservation, self.minEmbbObservation, self.maxEmbbReport, self.minEmbbReport)
+               	state = state.reshape(1, 1, len(state))
+                action = self.rl_models[x][Globals.TCON2_ID].predict(state,1)
+                action = self.invert_scale(self.scaler,state, action[0,0])
+                action = self.inverse_difference(self.embb_state_predict[x][1],action )
+                allocationResult[x][Globals.TCON2_ID] = action
+                self.lstmEmbbPrevStat = self.embb_state_predict[x][1]
+
+
+            if self.M.G.nodes[x][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE2:
+                allocationResult[x][Globals.TCON1_ID] = 1
+
+                state = self.ip_state_predict[x]
+                state = [self.lstmIpPrevStat, state[1], state[1]]
+                state = self.difference(state)
+                state = self.timeseries_to_supervised(state, 1)
+                state = state.values
+                state = self.scaler.transform(state)
+                state = state[1, 0:-1]
+                # state = self.normalizeSubStatePredictLSTM(state, self.maxIpObservation, self.minIpObservation, self.maxIpReport, self.minIpReport)
+               	state = state.reshape(1, 1, len(state))
+                action = self.rl_models[x][Globals.TCON2_ID].predict(state,1)
+                action = self.invert_scale(self.scaler,state, action[0,0])
+                action = self.inverse_difference(self.ip_state_predict[x][1],action )
+                allocationResult[x][Globals.TCON2_ID] = action
+                self.lstmIpPrevStat = self.ip_state_predict[x][1]
+       
+
+        return allocationResult
+
+
     def predictAllocation(self):
         allocationResult= self.initAllocationDict()
         threads = []
@@ -519,11 +621,11 @@ class OLT(object):
     def globalStateToSubStatesPredict(self):
         for x in self.M.G.nodes():
             if self.M.G.nodes[x][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
-                self.urllc_state_predict[x] = [self.onu_queue_status[x][Globals.TCON1_ID], self.lastOnuReport[x][Globals.TCON1_ID] * 10]
-                self.embb_state_predict[x] = [self.onu_queue_status[x][Globals.TCON2_ID], self.lastOnuReport[x][Globals.TCON2_ID]  * 10]
+                self.urllc_state_predict[x] = [self.onu_queue_status[x][Globals.TCON1_ID], self.lastOnuReport[x][Globals.TCON1_ID] * Globals.SERVICE_INTERVAL]
+                self.embb_state_predict[x] = [self.onu_queue_status[x][Globals.TCON2_ID], self.lastOnuReport[x][Globals.TCON2_ID]  * Globals.SERVICE_INTERVAL]
             if self.M.G.nodes[x][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE2:
-                self.video_state_predict[x] = [self.onu_queue_status[x][Globals.TCON1_ID], self.lastOnuReport[x][Globals.TCON1_ID] * 10]
-                self.ip_state_predict[x] = [self.onu_queue_status[x][Globals.TCON2_ID], self.lastOnuReport[x][Globals.TCON2_ID] * 10]
+                self.video_state_predict[x] = [self.onu_queue_status[x][Globals.TCON1_ID], self.lastOnuReport[x][Globals.TCON1_ID] * Globals.SERVICE_INTERVAL]
+                self.ip_state_predict[x] = [self.onu_queue_status[x][Globals.TCON2_ID], self.lastOnuReport[x][Globals.TCON2_ID] * Globals.SERVICE_INTERVAL]
 
 
     def globalStateToSubStates(self):
@@ -553,6 +655,17 @@ class OLT(object):
 
     def stateToObservation(self, state):
         state = numpy.array(state , dtype=numpy.float32)
+
+    def normalizeSubStatePredictLSTM(self, state, maxObs, minObs, maxReport, minReport):
+        for i in range(len(state)):
+            max = maxReport
+            min = minReport
+            if (state[i] > max):
+                state[i] = max
+            if (state[i] < min):
+                state[i] = min
+            state[i] = state[i]/max
+        return state
 
     def normalizeSubStatePredict(self, state, maxObs, minObs, maxReport, minReport):
         for i in range(len(state)):
@@ -592,10 +705,19 @@ class OLT(object):
             allocation[i] = action[i] * max
         return allocation
 
+    def timeseries_to_supervised(self, data, lag=1):
+        df = DataFrame(data)
+        columns = [df.shift(i) for i in range(1, lag+1)]
+        columns.append(df)
+        df = concat(columns, axis=1)
+        df.fillna(0, inplace=True)
+        return df
+
 
     def generateGrantMsg(self):
         # x = float("{0:.3f}".format(self.env.now))
         # if x / 0.25 == 0:
+        delay = time.time_ns()
         if(self.cycle % 1000 == 1):
             print(self.env.now)
         action = []
@@ -649,7 +771,6 @@ class OLT(object):
                         allocationResult[x][Globals.TCON2_ID] = int(ipAllocation[counter2])
                         counter2 = counter2 + 1
                         
-                return allocationResult
         
         elif (self.M.oltType == 'rl_predict'):
             self.globalStateToSubStatesPredict()
@@ -664,17 +785,34 @@ class OLT(object):
                         self.onu_queue_status[x][Globals.TCON1_ID] = allocationResult[x][Globals.TCON1_ID]
                         self.onu_queue_status[x][Globals.TCON2_ID] = allocationResult[x][Globals.TCON2_ID]
                 allocationResult = self.allocationIBU() 
-            return allocationResult   
         
+        elif self.M.oltType == 'lstm':
+            self.globalStateToSubStatesPredict()
+            allocationResult = self.predictAllocationLSTM()
+            sum,_,_,_,_ = self.getTotalDict(allocationResult) 
+            if(sum > Globals.FB):
+                for x in self.M.G.nodes():
+                    if self.M.G.nodes[x][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
+                        self.onu_queue_status[x][Globals.TCON1_ID] = allocationResult[x][Globals.TCON1_ID]
+                        self.onu_queue_status[x][Globals.TCON2_ID] = allocationResult[x][Globals.TCON2_ID]
+                    if self.M.G.nodes[x][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE2:
+                        self.onu_queue_status[x][Globals.TCON1_ID] = allocationResult[x][Globals.TCON1_ID]
+                        self.onu_queue_status[x][Globals.TCON2_ID] = allocationResult[x][Globals.TCON2_ID]
+                allocationResult = self.allocationIBU() 
+
+
         elif self.M.oltType == 'ibu':
             allocationResult = self.allocationIBU()
-            return allocationResult
+            
 
         else:
             # allocate based on IBU
             allocationResult = self.allocationGiant()
-            return allocationResult
 
+        endTime = time.time_ns()
+        delay = endTime - delay
+        self.M.totalDelay = self.M.totalDelay + delay
+        return allocationResult
 
     def allocationIBU(self):
         action = 0

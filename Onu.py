@@ -72,8 +72,11 @@ class ONU(object):
             self.amplificationFactor = {
                 # Globals.TCON1_ID: 630/2/1.9,
                 # Globals.TCON2_ID: 350/2/1.9,
-                Globals.TCON1_ID: 630/2/1.9/16/10/2,
-                Globals.TCON2_ID: 630/2/1.9/16/1.8/10/2 }
+                # Globals.TCON1_ID: 630/2/1.9/16/10/2,
+                # Globals.TCON2_ID: 630/2/1.9/16/1.8/10/2
+                Globals.TCON1_ID: 480/2/1.9/446.4,
+                Globals.TCON2_ID: 480/2/1.9/446.4,
+                 }
         else:
             # self.amplificationFactor = {
             #     Globals.TCON1_ID: 0,
@@ -81,8 +84,12 @@ class ONU(object):
             # }
             self.amplificationFactor = {
                 Globals.TCON1_ID: 0,
-                Globals.TCON2_ID: 630/2/1.9/16/1.36/10/2,
+                Globals.TCON2_ID: 480/2/1.9/446.4,
             }
+            # self.amplificationFactor = {
+            #     Globals.TCON1_ID: 0,
+            #     Globals.TCON2_ID: 630/2/1.9/16/1.36/10/2,
+            # }
 
         self.queue_mon = collections.deque()
 
@@ -196,6 +203,10 @@ class ONU(object):
         self.xgponCounter = 0 
         while(True):
             if (self.M.oltType == 'g'):
+                report_cycles = [0] 
+                grant_cycles = [Globals.SERVICE_INTERVAL - 1]
+                grant_cycles_r = [(x + Globals.PROPAGATION_TIME) % Globals.SERVICE_INTERVAL for x in grant_cycles]
+
                 if self.env.now < Globals.GEN_TIME:
                     if self.M.G.nodes[self.name][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
                         self.URLLC_ONU1_T1_pkt_gen_process()
@@ -207,7 +218,7 @@ class ONU(object):
             
                 if (self.xgponCounter % Globals.SERVICE_INTERVAL == 0):
                     self.send_report_packet()
-                if (self.xgponCounter % Globals.SERVICE_INTERVAL == Globals.SERVICE_INTERVAL - 1):
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles_r and self.xgponCounter >= Globals.SERVICE_INTERVAL):
                     self.tcon_allocated_size[Globals.TCON1_ID] = 0
                     self.tcon_allocated_size[Globals.TCON2_ID] = 0
                     for c in self.conns:
@@ -216,8 +227,9 @@ class ONU(object):
                 yield self.env.timeout(Globals.XGSPON_CYCLE)
             
             elif (self.M.oltType == 'ibu'):
-                report_cycles = [0, 3, 6]   
-                grant_cycles = [2, 5, 8] 
+                report_cycles = [0, 2, 4] 
+                grant_cycles = [1, 3, 5]   
+                grant_cycles_r = [x + Globals.PROPAGATION_TIME for x in grant_cycles]
                 if self.env.now < Globals.GEN_TIME:
                     if self.M.G.nodes[self.name][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
                         self.URLLC_ONU1_T1_pkt_gen_process()
@@ -230,7 +242,7 @@ class ONU(object):
                 if (self.xgponCounter % Globals.SERVICE_INTERVAL in report_cycles):
                     self.send_report_packet()
                 
-                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles):
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles_r and self.xgponCounter >= Globals.SERVICE_INTERVAL):
                     self.tcon_allocated_size[Globals.TCON1_ID] = 0
                     self.tcon_allocated_size[Globals.TCON2_ID] = 0
                     for c in self.conns:
@@ -243,7 +255,9 @@ class ONU(object):
                 # report_cycles = [0,1,2,3,4,5,6,7,8,9] 
                 # grant_cycles = [0,1,2,3,4,5,6,7,8,9]  
                 report_cycles = [0] 
-                grant_cycles = [1]     
+                grant_cycles = [1]
+                grant_cycles_r = [(x + Globals.PROPAGATION_TIME) % Globals.SERVICE_INTERVAL for x in grant_cycles]
+     
                 if self.env.now < Globals.GEN_TIME:
                     if self.M.G.nodes[self.name][Globals.NODE_TYPE_KWD] == Globals.ONU_TYPE:
                         self.URLLC_ONU1_T1_pkt_gen_process()
@@ -252,7 +266,7 @@ class ONU(object):
                         # self.Video_ONU2_T2_pkt_gen_process()
                         self.IP_ONU2_T3_pkt_gen_process()
                 self.forward_process()
-                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles):
+                if (self.xgponCounter % Globals.SERVICE_INTERVAL in grant_cycles_r):
                     self.tcon_allocated_size[Globals.TCON1_ID] = 0
                     self.tcon_allocated_size[Globals.TCON2_ID] = 0
                     for c in self.conns:

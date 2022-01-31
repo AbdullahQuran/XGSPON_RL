@@ -5,3 +5,7 @@ rl_learning_DQN/*
 *.json
 *.pkl
 /results/*
+*.param
+*.topo
+*.type
+*.h5
